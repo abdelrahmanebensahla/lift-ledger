@@ -115,6 +115,24 @@ label.f > span{font-size:12px;font-weight:600;color:var(--muted)}
 .ed-head{font-size:12px;font-weight:600;color:var(--muted)}
 .ed-head span{text-align:center} .ed-head span:first-child{text-align:left}
 .est{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+/* Exercise cards in the template editor */
+.edc{padding:0;overflow:hidden}
+.edc .head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:14px 10px 4px 16px}
+.edc h3{font-size:17px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.esets{display:flex;flex-direction:column;gap:8px;padding:10px 16px 14px}
+.erow{display:grid;grid-template-columns:22px minmax(0,1fr) minmax(0,1fr) 32px;gap:10px;align-items:center;max-width:420px}
+.erow .n{font:600 17px var(--f-display);color:var(--muted)}
+.ui{position:relative;display:block;min-width:0}
+.ui input{height:46px;padding:0 48px 0 14px;font-size:17px;font-weight:600;background:var(--surface);border:1.5px solid var(--line)}
+.ui input:focus{border-color:var(--accent)}
+.ui span{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--muted);pointer-events:none}
+.x{width:32px;height:32px;border:0;background:none;color:var(--muted);border-radius:8px;font-size:20px;line-height:1;cursor:pointer}
+.x:hover{background:var(--pr-soft);color:var(--pr)}
+.efoot{display:flex;justify-content:space-between;align-items:center;gap:10px;border-top:1px solid var(--line);padding:12px 16px}
+.linkbtn{border:0;background:none;color:var(--accent);font:700 14px var(--f-body);letter-spacing:.06em;text-transform:uppercase;cursor:pointer;padding:6px 0}
+.more{font-size:20px;letter-spacing:1px;font-weight:700}
+.menu{display:flex;gap:6px;flex-wrap:wrap;padding:6px 16px 4px}
+.exc .menu{padding:10px 0 0}
 /* Active workout bar with docked timer */
 .sessbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:6;background:var(--bg);padding-block:8px;margin-top:-12px}
 .sessbar .in{background:var(--surface);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
@@ -312,7 +330,7 @@ const IC={
 /* ---------- State ---------- */
 const S={db:null,sessions:[],templates:[],profile:{unit:"lb",sex:"",age:"",heightCm:"",weightKg:"",bodyFat:"",activity:"1.375",autoRest:true},custom:[],weights:[],
  active:null,logView:"home",plan:[],planName:"",planType:"Push",editId:null,tab:"log",rest:null,drafts:{},trendEx:null,libGroup:"all",libQ:"",
- pickCtx:"plan",pickGroup:"all",pickQ:"",pickSel:[],histOpen:null,confirm:null,writeQ:Promise.resolve(),loaded:false,sync:["On this device","ok"],pendingImport:null};
+ pickCtx:"plan",pickGroup:"all",pickQ:"",pickSel:[],menu:null,histOpen:null,confirm:null,writeQ:Promise.resolve(),loaded:false,sync:["On this device","ok"],pendingImport:null};
 let EXMAP={}; let L={rest:{},last:{},best:{},prs:[],done:[]};
 function rebuildExMap(){EXMAP={};for(const e of EX.concat(S.custom))EXMAP[e.id]=e}
 rebuildExMap();
@@ -353,10 +371,13 @@ function cardioCalc(c,kg){const min=+c.min||0;let vo2;
  else if(c.kind==="bike"){vo2=(+c.watts>0)?7+10.8*(+c.watts)/kg:3.5*({light:3.5,moderate:6.8,vigorous:8.8}[c.effort]||6.8)}
  else vo2=3.5*(+c.met||4);
  return{sec:min*60,gross:vo2*kg/1000*5*min,net:Math.max(0,vo2-3.5)*kg/1000*5*min}}
+/* template items hold one entry per set: {exId, sets:[{r, w}]}; older items used {sets:n, reps, w} */
+function normItem(it){if(Array.isArray(it.sets))return it;const n=Math.max(1,+it.sets||1);return{exId:it.exId,sets:Array.from({length:n},()=>({r:it.reps??"",w:it.w??""}))}}
 function planEstimate(items,bw){let T={sec:0,net:0,gross:0,vol:0,sets:0};
- const rows=items.map(it=>{const e=ex(it.exId),sets=+it.sets||0,reps=+it.reps||0,ld=loadOf(e,it.w,bw);
-  const work=sets*reps*tempo(e),rest=sets*restFor(e.id),setup=60;
-  const r={sec:work+rest+setup,net:(metW(e)-1)*bw*work/3600+(MET_REST-1)*bw*(rest+setup)/3600,gross:metW(e)*bw*work/3600+MET_REST*bw*(rest+setup)/3600,vol:sets*reps*ld,sets};
+ const rows=items.map(raw=>{const it=normItem(raw),e=ex(it.exId),sets=it.sets.length;let work=0,vol=0;
+  for(const st of it.sets){const r=+st.r||0;work+=r*tempo(e);vol+=r*loadOf(e,st.w,bw)}
+  const rest=sets*restFor(e.id),setup=60;
+  const r={sec:work+rest+setup,net:(metW(e)-1)*bw*work/3600+(MET_REST-1)*bw*(rest+setup)/3600,gross:metW(e)*bw*work/3600+MET_REST*bw*(rest+setup)/3600,vol,sets};
   for(const k in T)T[k]+=r[k];return r});
  return{rows,T}}
 function sessionMetrics(s){const bw=sessBw(s);
@@ -443,36 +464,39 @@ function lastCard(){const d=L.done;if(!d.length)return`<div class="card small mu
  const s=d[d.length-1],m=sessionMetrics(s);return`<div class="sec">Last workout</div><div class="card"><div class="spread"><h3>${esc(s.template||s.type||"Workout")}</h3><span class="small muted">${new Date(s.startedAt).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})}</span></div><div style="margin-top:10px">${statGrid([["time",Math.round(m.dur/60)+"m"],["sets",m.sets],["volume "+U(),tick(toD(m.vol))],["kcal",fmt(m.net)]])}</div></div>`}
 
 /* ---------- WORKOUT: template editor ---------- */
+function edCard(it,i){const e=ex(it.exId),est=planEstimate([it],bwKg()).rows[0],n=S.plan.length,menu=S.menu==="ed:"+i;
+ const rows=it.sets.map((st,j)=>`<div class="erow"><span class="n">${j+1}</span>
+   <label class="ui"><input type="number" inputmode="numeric" id="p-r-${i}-${j}" data-bind="plan-set" data-i="${i}" data-j="${j}" data-k="r" value="${esc(st.r)}" aria-label="Set ${j+1} reps"><span>reps</span></label>
+   <label class="ui"><input type="number" inputmode="decimal" id="p-w-${i}-${j}" data-bind="plan-set" data-i="${i}" data-j="${j}" data-k="w" value="${esc(dv(st.w))}" aria-label="Set ${j+1} ${e.bw?"added weight":"weight"}"><span>${e.bw?"+"+U():U()}</span></label>
+   ${it.sets.length>1?`<button class="x" data-act="ed-set-rm" data-i="${i}" data-j="${j}" aria-label="Remove set ${j+1}">×</button>`:"<span></span>"}</div>`).join("");
+ return`<div class="card edc" id="ed-${i}"><div class="head"><h3>${esc(e.n)}</h3><button class="icon-btn more" data-act="ed-menu" data-i="${i}" aria-label="Options for ${esc(e.n)}" aria-expanded="${menu}">•••</button></div>
+  ${menu?`<div class="menu"><button class="btn sm" data-act="ed-move" data-i="${i}" data-d="-1" ${i===0?"disabled":""}>Move up</button><button class="btn sm" data-act="ed-move" data-i="${i}" data-d="1" ${i===n-1?"disabled":""}>Move down</button><button class="btn sm danger" data-act="plan-rm" data-i="${i}">Remove</button></div>`:""}
+  <div class="esets">${rows}</div>
+  <div class="efoot"><button class="linkbtn" data-act="ed-set-add" data-i="${i}">Add set</button><span class="est" id="pe-${i}">${estLine(est,e)}</span></div></div>`}
 function renderEditor(){const v=document.getElementById("v-log"),est=planEstimate(S.plan,bwKg()),existing=S.editId&&S.templates.find(t=>t.id===S.editId);
- const rows=S.plan.map((it,i)=>{const e=ex(it.exId);return`<div class="ed-row">
-  <div class="nm"><div>${esc(e.n)}</div><div class="est" id="pe-${i}">${estLine(est.rows[i],e)}</div></div>
-  <input type="number" inputmode="numeric" id="pl-s-${i}" data-bind="plan" data-i="${i}" data-k="sets" value="${esc(it.sets)}" aria-label="Sets">
-  <input type="number" inputmode="numeric" id="pl-r-${i}" data-bind="plan" data-i="${i}" data-k="reps" value="${esc(it.reps)}" aria-label="Reps">
-  <input type="number" inputmode="decimal" id="pl-w-${i}" data-bind="plan" data-i="${i}" data-k="w" value="${esc(dv(it.w))}" placeholder="${e.bw?"+"+U():U()}" aria-label="Load">
-  <button class="icon-btn danger" data-act="plan-rm" data-i="${i}" aria-label="Remove ${esc(e.n)}">${IC.trash}</button></div>`}).join("");
  v.innerHTML=`<div class="vhead"><button class="btn sm ghost" data-act="home" style="padding-left:4px">${IC.back} Workout</button>${syncHTML()}</div>
   <div class="card col">
    <label class="f"><span>Name</span><input id="planName" data-bind="planName" value="${esc(S.planName)}" placeholder="e.g. Push A"></label>
    <div class="chips">${["Push","Pull","Legs","Upper","Lower","Full body","Cardio","Other"].map(t=>`<button class="chip" data-act="plan-type" data-t="${t}" aria-pressed="${S.planType===t}">${t}</button>`).join("")}</div>
   </div>
-  <div class="card">
-   ${S.plan.length?`<div class="ed-head"><span>Exercise</span><span>Sets</span><span>Reps</span><span>${U()}</span><span></span></div>${rows}`:`<div class="empty"><h3>Add exercises</h3>Each one gets a time, calorie and volume estimate.</div>`}
-   <button class="btn soft block" data-act="pick-open" data-ctx="plan" style="margin-top:12px">${IC.plus} Add exercises</button>
-  </div>
+  ${S.plan.map(edCard).join("")||`<div class="card empty"><h3>Add exercises</h3>Each one gets a time, calorie and volume estimate.</div>`}
+  <button class="btn soft block" data-act="pick-open" data-ctx="plan">${IC.plus} Add exercises</button>
   <div class="card" id="planTotals">${planStats(est.T)}</div>
   <button class="btn pri lg block" data-act="start" ${S.plan.length||S.planType==="Cardio"?"":"disabled"}>Start workout</button>
   <div class="row"><button class="btn" data-act="tpl-save" style="flex:1" ${S.plan.length?"":"disabled"}>${existing&&!existing.example?"Save changes":"Save as template"}</button>
    ${existing?`<button class="btn danger" data-act="tpl-del" data-id="${esc(existing.id)}">${IC.trash} Delete</button>`:""}</div>
   ${existing&&S.confirm==="tpl:"+existing.id?`<div class="confirm"><span>Delete "${esc(existing.name)}"? Past workouts stay.</span><span class="row"><button class="btn sm danger" data-act="tpl-del-yes" data-id="${esc(existing.id)}">Delete</button><button class="btn sm" data-act="confirm-no">Cancel</button></span></div>`:""}`}
 const planStats=T=>statGrid([["est. time",Math.round(T.sec/60)+"m"],["sets",T.sets],["volume "+U(),tick(toD(T.vol))],["net kcal",fmt(T.net)]]);
-function estLine(r,e){return`${Math.round(r.sec/60)} min · ${fmt(r.net)} kcal · ${tick(toD(r.vol))} ${U()}${L.rest[e.id]?" · your rest "+clock(L.rest[e.id]):""}`}
+function estLine(r,e){return`${Math.round(r.sec/60)} min · ${fmt(r.net)} kcal · ${tick(toD(r.vol))} ${U()}`}
 function updatePlanTotals(){const est=planEstimate(S.plan,bwKg());est.rows.forEach((r,i)=>{const el=document.getElementById("pe-"+i);if(el)el.textContent=estLine(r,ex(S.plan[i].exId))});
  const t=document.getElementById("planTotals");if(t)t.innerHTML=planStats(est.T)}
 
 /* ---------- WORKOUT: active ---------- */
-function suggestion(it,j){const l=L.last[it.exId];const p=l&&(l.sets[j]||l.sets[l.sets.length-1]);
- if(it.sets.length){const ls=it.sets[it.sets.length-1];return{w:ls.w,r:ls.r}}
- return{w:it.tW!==""&&it.tW!=null?it.tW:(p?p.w:""),r:it.tReps||(p?p.r:"")}}
+function suggestion(it,j){const l=L.last[it.exId],p=l&&(l.sets[j]||l.sets[l.sets.length-1]),t=it.targets&&it.targets[j],ls=it.sets[it.sets.length-1];
+ const has=v=>v!==""&&v!=null&&Number.isFinite(+v);
+ const w=t&&has(t.w)?t.w:ls?ls.w:has(it.tW)?it.tW:p?p.w:"";
+ const r=t&&+t.r?t.r:ls?ls.r:(it.tReps||(p?p.r:""));
+ return{w,r}}
 function exCard(it,i){const e=ex(it.exId),a=S.active,bw=sessBw(a),bestPrior=L.best[e.id]?.v||0;let running=bestPrior;
  const nRows=Math.max(it.rows??it.tSets??1,it.sets.length,1);const l=L.last[e.id];let rows="";
  for(let j=0;j<nRows;j++){const p=l&&l.sets[j];
@@ -489,7 +513,8 @@ function exCard(it,i){const e=ex(it.exId),a=S.active,bw=sessBw(a),bestPrior=L.be
  return`<div class="card exc" id="exc-${i}"><div class="head"><div style="min-width:0"><h3>${esc(e.n)}</h3>
    <div class="row" style="margin-top:4px;gap:6px"><button class="restchip" data-act="rest-ex" data-i="${i}" aria-label="Start ${clock(restFor(e.id))} rest timer">${IC.timer}${clock(restFor(e.id))}${L.rest[e.id]?" yours":""}</button>
    ${L.best[e.id]?`<span class="tiny muted num">best e1RM ${dW(L.best[e.id].v)} ${U()}</span>`:""}${e.bw?`<span class="tiny muted">enter added weight</span>`:""}</div></div>
-   <button class="icon-btn danger" data-act="ex-rm" data-i="${i}" aria-label="Remove ${esc(e.n)}">${IC.trash}</button></div>
+   <button class="icon-btn more" data-act="ex-menu" data-i="${i}" aria-label="Options for ${esc(e.n)}" aria-expanded="${S.menu==="ex:"+i}">•••</button></div>
+  ${S.menu==="ex:"+i?`<div class="menu"><button class="btn sm" data-act="ex-move" data-i="${i}" data-d="-1" ${i===0?"disabled":""}>Move up</button><button class="btn sm" data-act="ex-move" data-i="${i}" data-d="1" ${i===a.exercises.length-1?"disabled":""}>Move down</button><button class="btn sm danger" data-act="ex-rm" data-i="${i}">Remove</button></div>`:""}
   ${S.confirm==="ex:"+i?`<div class="confirm" style="margin-top:10px"><span>Remove with ${it.sets.length} logged set${it.sets.length===1?"":"s"}?</span><span class="row"><button class="btn sm danger" data-act="ex-rm-yes" data-i="${i}">Remove</button><button class="btn sm" data-act="confirm-no">Cancel</button></span></div>`:""}
   <div class="sets"><div class="srow h"><span>Set</span><span>Previous</span><span>${e.bw?"+"+U():U()}</span><span>Reps</span><span></span></div>${rows}</div>
   ${e.eq==="barbell"?`<div class="plates" id="pm-${i}"></div>`:""}
@@ -711,10 +736,11 @@ function renderPicker(){const q=S.pickQ.toLowerCase();
  const list=EX.concat(S.custom).filter(e=>(S.pickGroup==="all"||e.g===S.pickGroup)&&(!q||e.n.toLowerCase().includes(q)));
  document.getElementById("pickList").innerHTML=list.map(e=>{const on=S.pickSel.includes(e.id);return`<button class="pick" data-act="pick-toggle" data-id="${esc(e.id)}" aria-pressed="${on}"><span><span style="display:block">${esc(e.n)}</span><span class="tiny muted" style="text-transform:capitalize">${esc(e.g)}${L.best[e.id]?" · e1RM "+dW(L.best[e.id].v)+" "+U():""}</span></span><span class="ck">${on?IC.check:""}</span></button>`}).join("")||`<div class="empty">No match. Add it as a custom exercise.</div>`;
  const b=document.getElementById("pickAdd");b.disabled=!S.pickSel.length;b.textContent=S.pickSel.length?`Add ${S.pickSel.length} exercise${S.pickSel.length>1?"s":""}`:"Select exercises"}
-function addExercises(ids,ctx){for(const id of ids){const e=ex(id),l=L.last[id];
- if(ctx==="active"&&S.active)S.active.exercises.push({exId:id,tSets:2,tReps:e.c?5:10,tW:l?l.sets[0].w:"",rows:2,sets:[]});
- else S.plan.push({exId:id,sets:2,reps:e.c?5:10,w:l?l.sets[0].w:""})}
- if(ctx==="active"&&S.active)persist();else S.logView="edit";S.tab="log";render()}
+function addExercises(ids,ctx){for(const id of ids){const e=ex(id),l=L.last[id],defR=e.c?5:10;
+ const sets=l?l.sets.map(x=>({r:x.r,w:x.w})):[{r:defR,w:""},{r:defR,w:""}];
+ if(ctx==="active"&&S.active)S.active.exercises.push({exId:id,targets:sets,tSets:sets.length,tReps:sets[0].r,tW:sets[0].w,rows:sets.length,sets:[]});
+ else S.plan.push({exId:id,sets})}
+ S.menu=null;if(ctx==="active"&&S.active)persist();else S.logView="edit";S.tab="log";render()}
 
 /* ---------- Rest timer (docked in the workout bar) ---------- */
 let actx=null;
@@ -735,25 +761,32 @@ document.addEventListener("visibilitychange",()=>{if(document.visibilityState===
 function render(){renderShell();({log:renderLog,history:renderHistory,trends:renderTrends,library:renderLibrary,profile:renderProfile})[S.tab]()}
 const newId=()=>{const d=new Date();return"s-"+localDate(d).replace(/-/g,"")+"-"+String(d.getHours()).padStart(2,"0")+String(d.getMinutes()).padStart(2,"0")+String(d.getSeconds()).padStart(2,"0")};
 function startWorkout(items,name,type){S.active={id:newId(),status:"active",date:localDate(Date.now()),type,template:name||null,startedAt:new Date().toISOString(),endedAt:null,bodyweightKg:bwKg(),bodyweightKnown:bwKnown(),unit:U(),
-  exercises:items.map(it=>({exId:it.exId,tSets:+it.sets||null,tReps:+it.reps||null,tW:it.w??"",rows:+it.sets||1,sets:[]})),cardio:type==="Cardio"?[{kind:"treadmill",min:30,mph:3,grade:8}]:[],notes:"",
+  exercises:items.map(raw=>{const it=normItem(raw),tg=it.sets.map(x=>({r:+x.r||"",w:x.w??""}));return{exId:it.exId,targets:tg,tSets:tg.length,tReps:tg[0]?.r||null,tW:tg[0]?.w??"",rows:Math.max(1,tg.length),sets:[]}}),cardio:type==="Cardio"?[{kind:"treadmill",min:30,mph:3,grade:8}]:[],notes:"",
   plannedEstimate:(()=>{const T=planEstimate(items,bwKg()).T;return{min:Math.round(T.sec/60),netKcal:Math.round(T.net),volumeKg:Math.round(T.vol),sets:T.sets}})()};
  S.drafts={};S.confirm=null;S.rest=null;S.tab="log";persist();lockScreen();render();window.scrollTo(0,0)}
 function tplId(name){let base="t-"+(name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)||"template"),id=base,k=2;while(S.templates.some(t=>t.id===id))id=base+"-"+k++;return id}
 function saveTemplate(){const name=(S.planName||"").trim()||S.planType;const existing=S.editId&&S.templates.find(t=>t.id===S.editId);const id=existing?existing.id:tplId(name);
- const doc={name,type:S.planType,items:S.plan.map(it=>({exId:it.exId,sets:+it.sets||0,reps:+it.reps||0,w:it.w===""||it.w==null?"":Math.round(+it.w*1000)/1000})),updatedAt:new Date().toISOString()};
+ const doc={name,type:S.planType,items:S.plan.map(it=>({exId:it.exId,sets:normItem(it).sets.map(x=>({r:+x.r||0,w:x.w===""||x.w==null?"":Math.round(+x.w*1000)/1000}))})),updatedAt:new Date().toISOString()};
  writeDoc("templates/"+id,doc);const i=S.templates.findIndex(t=>t.id===id);if(i>=0)S.templates[i]={id,...doc};else S.templates.push({id,...doc});S.editId=id;S.planName=name}
 const ACT={
- tab:b=>{S.tab=b.dataset.tab;S.confirm=null;render();window.scrollTo(0,0)},
+ tab:b=>{S.tab=b.dataset.tab;S.confirm=null;S.menu=null;render();window.scrollTo(0,0)},
  home:()=>{S.logView="home";S.confirm=null;renderLog();window.scrollTo(0,0)},
  "empty-start":()=>startWorkout([],null,"Other"),
  "tpl-start":b=>{const t=S.templates.find(x=>x.id===b.dataset.id);if(t)startWorkout(t.items||[],t.name,t.type||"Other")},
- "tpl-edit":b=>{const t=S.templates.find(x=>x.id===b.dataset.id);if(!t)return;S.plan=JSON.parse(JSON.stringify(t.items||[]));S.planName=t.name;S.planType=t.type||"Other";S.editId=t.id;S.logView="edit";S.confirm=null;renderLog();window.scrollTo(0,0)},
- "tpl-new":()=>{S.plan=[];S.planName="";S.planType="Push";S.editId=null;S.logView="edit";S.confirm=null;renderLog();window.scrollTo(0,0)},
+ "tpl-edit":b=>{const t=S.templates.find(x=>x.id===b.dataset.id);if(!t)return;S.plan=JSON.parse(JSON.stringify(t.items||[])).map(normItem);S.planName=t.name;S.menu=null;S.planType=t.type||"Other";S.editId=t.id;S.logView="edit";S.confirm=null;renderLog();window.scrollTo(0,0)},
+ "tpl-new":()=>{S.menu=null;S.plan=[];S.planName="";S.planType="Push";S.editId=null;S.logView="edit";S.confirm=null;renderLog();window.scrollTo(0,0)},
  "tpl-del":b=>{S.confirm="tpl:"+b.dataset.id;renderLog()},
  "tpl-del-yes":b=>{const id=b.dataset.id;S.templates=S.templates.filter(t=>t.id!==id);delDoc("templates/"+id);S.confirm=null;if(S.editId===id){S.editId=null;S.logView="home"}renderLog()},
  "tpl-save":()=>{if(!S.plan.length)return;saveTemplate();S.logView="home";renderLog();window.scrollTo(0,0)},
  "plan-type":b=>{S.planType=b.dataset.t;document.querySelectorAll('[data-act="plan-type"]').forEach(c=>c.setAttribute("aria-pressed",String(c.dataset.t===S.planType)));const st=document.querySelector('[data-act="start"]');if(st)st.disabled=!(S.plan.length||S.planType==="Cardio")},
- "plan-rm":b=>{S.plan.splice(+b.dataset.i,1);renderLog()},
+ "plan-rm":b=>{S.plan.splice(+b.dataset.i,1);S.menu=null;renderLog()},
+ "ed-menu":b=>{const k="ed:"+b.dataset.i;S.menu=S.menu===k?null:k;renderLog()},
+ "ed-move":b=>{const i=+b.dataset.i,j=i+(+b.dataset.d);if(j<0||j>=S.plan.length)return;[S.plan[i],S.plan[j]]=[S.plan[j],S.plan[i]];S.menu="ed:"+j;renderLog();document.getElementById("ed-"+j)?.scrollIntoView({block:"nearest",behavior:"smooth"})},
+ "ed-set-add":b=>{const it=S.plan[+b.dataset.i],last=it.sets[it.sets.length-1]||{r:"",w:""};it.sets.push({r:last.r,w:last.w});renderLog();document.getElementById("p-r-"+b.dataset.i+"-"+(it.sets.length-1))?.focus()},
+ "ed-set-rm":b=>{const it=S.plan[+b.dataset.i];if(it.sets.length>1)it.sets.splice(+b.dataset.j,1);renderLog()},
+ "ex-menu":b=>{const k="ex:"+b.dataset.i;S.menu=S.menu===k?null:k;S.confirm=null;renderActive()},
+ "ex-move":b=>{const ex_=S.active.exercises,i=+b.dataset.i,j=i+(+b.dataset.d);if(j<0||j>=ex_.length)return;[ex_[i],ex_[j]]=[ex_[j],ex_[i]];
+  const nd={};for(const k in S.drafts){const[a,c]=k.split("-").map(Number);nd[(a===i?j:a===j?i:a)+"-"+c]=S.drafts[k]}S.drafts=nd;S.menu="ex:"+j;persist();renderActive();document.getElementById("exc-"+j)?.scrollIntoView({block:"nearest",behavior:"smooth"})},
  start:()=>startWorkout(S.plan,(S.planName||"").trim()||null,S.planType),
  "pick-open":b=>{S.pickCtx=b.dataset.ctx;S.pickQ="";S.pickSel=[];document.getElementById("pickSearch").value="";document.getElementById("picker").hidden=false;renderPicker()},
  "pick-close":()=>{document.getElementById("picker").hidden=true},
@@ -769,8 +802,8 @@ const ACT={
  uncheck:b=>{const i=+b.dataset.i;S.active.exercises[i].sets.splice(+b.dataset.j,1);persist();refreshCard(i)},
  "row-add":b=>{const it=S.active.exercises[+b.dataset.i];it.rows=Math.max(it.rows??1,it.sets.length)+1;persistSoon();refreshCard(+b.dataset.i)},
  "row-rm":b=>{const it=S.active.exercises[+b.dataset.i];it.rows=Math.max(it.sets.length,(it.rows??1)-1,1);persistSoon();refreshCard(+b.dataset.i)},
- "ex-rm":b=>{const i=+b.dataset.i;if(!S.active.exercises[i].sets.length){S.active.exercises.splice(i,1);S.drafts={};persist();renderActive();return}S.confirm="ex:"+i;refreshCard(i)},
- "ex-rm-yes":b=>{S.active.exercises.splice(+b.dataset.i,1);S.drafts={};S.confirm=null;persist();renderActive()},
+ "ex-rm":b=>{const i=+b.dataset.i;if(!S.active.exercises[i].sets.length){S.active.exercises.splice(i,1);S.drafts={};S.menu=null;persist();renderActive();return}S.confirm="ex:"+i;refreshCard(i)},
+"ex-rm-yes":b=>{S.active.exercises.splice(+b.dataset.i,1);S.drafts={};S.confirm=null;S.menu=null;persist();renderActive()},
  "add-cardio":()=>{S.active.cardio=S.active.cardio||[];S.active.cardio.push({kind:"treadmill",min:20,mph:3,grade:8});persist();renderActive()},
  "cardio-kind":b=>{const c=S.active.cardio[+b.dataset.k];c.kind=b.dataset.v;if(c.kind==="bike"&&!c.effort)c.effort="moderate";persist();renderActive()},
  "cardio-rm":b=>{S.active.cardio.splice(+b.dataset.k,1);persist();renderActive()},
@@ -789,7 +822,7 @@ const ACT={
  "hist-toggle":b=>{S.histOpen=S.histOpen===b.dataset.id?null:b.dataset.id;S.confirm=null;renderHistory()},
  "hist-del":b=>{S.confirm="del:"+b.dataset.id;renderHistory()},
  "hist-del-yes":b=>{const id=b.dataset.id;S.sessions=S.sessions.filter(s=>s.id!==id);S.confirm=null;delDoc("sessions/"+id);learn();renderHistory()},
- "hist-tpl":b=>{const s=S.sessions.find(x=>x.id===b.dataset.id);if(!s)return;S.plan=(s.exercises||[]).filter(it=>it.sets.length).map(it=>({exId:it.exId,sets:it.sets.length,reps:it.sets[0].r,w:it.sets[0].w}));
+ "hist-tpl":b=>{const s=S.sessions.find(x=>x.id===b.dataset.id);if(!s)return;S.plan=(s.exercises||[]).filter(it=>it.sets.length).map(it=>({exId:it.exId,sets:it.sets.map(x=>({r:x.r,w:x.w}))}));
   S.planName=(s.template||s.type||"Workout")+" copy";S.planType=s.type||"Other";S.editId=null;S.logView="edit";S.tab="log";render();window.scrollTo(0,0)},
  reopen:b=>{if(S.active)return;const s=S.sessions.find(x=>x.id===b.dataset.id);if(!s)return;S.active=JSON.parse(JSON.stringify(s));S.active.status="active";S.active.exercises.forEach(it=>it.rows=it.sets.length);S.drafts={};persist();S.tab="log";render();window.scrollTo(0,0)},
  "lib-group":b=>{S.libGroup=b.dataset.g;document.querySelectorAll('[data-act="lib-group"]').forEach(c=>c.setAttribute("aria-pressed",String(c.dataset.g===S.libGroup)));document.getElementById("libList").innerHTML=libList()},
@@ -816,7 +849,7 @@ document.addEventListener("click",e=>{unlockAudio();const b=e.target.closest("[d
 document.getElementById("picker").addEventListener("click",e=>{if(e.target.id==="picker")document.getElementById("picker").hidden=true});
 function showPlates(t){const pm=document.getElementById("pm-"+t.dataset.i);if(!pm)return;pm.textContent=plates(t.value!==""?+t.value:+t.placeholder)}
 const BIND={
- plan:t=>{const it=S.plan[+t.dataset.i];if(!it)return;const k=t.dataset.k;it[k]=t.value===""?"":(k==="w"?fromD(+t.value):+t.value);updatePlanTotals()},
+ "plan-set":t=>{const st=S.plan[+t.dataset.i]?.sets[+t.dataset.j];if(!st)return;const k=t.dataset.k;st[k]=t.value===""?"":(k==="w"?fromD(+t.value):parseInt(t.value,10));updatePlanTotals()},
  planName:t=>{S.planName=t.value},
  draft:t=>{const key=t.dataset.i+"-"+t.dataset.j;S.drafts[key]=S.drafts[key]||{};S.drafts[key][t.dataset.k]=t.value;if(t.dataset.k==="w")showPlates(t)},
  "done-edit":t=>{const st=S.active.exercises[+t.dataset.i].sets[+t.dataset.j];if(!st||t.value==="")return;st[t.dataset.k]=t.dataset.k==="r"?parseInt(t.value,10):Math.round(fromD(+t.value)*1000)/1000;persistSoon();updateActiveTotals();if(t.dataset.k==="w")showPlates(t)},

@@ -1,5 +1,5 @@
 // Lift Ledger service worker: network-first for the app page (updates arrive fast), cache fallback offline.
-const VERSION = "ll-v1";
+const VERSION = "ll-v2";
 const SHELL = ["/", "/manifest.webmanifest", "/icons/apple-touch-icon.png", "/icons/icon-192.png", "/icons/icon-512.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => {
