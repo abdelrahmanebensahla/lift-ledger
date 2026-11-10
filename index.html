@@ -18,7 +18,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
 <style>
-html{-webkit-text-size-adjust:100%}
+html{-webkit-text-size-adjust:100%;background:var(--bg);min-height:100%}
+html[data-standalone]{min-height:calc(100% + env(safe-area-inset-top,0px))}
 body{margin:0}
 [hidden]{display:none!important}
 button,a,input,select{touch-action:manipulation}
@@ -167,7 +168,7 @@ label.f > span{font-size:12px;font-weight:600;color:var(--muted)}
 .setfoot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px}
 .plates{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;min-height:16px;margin-top:6px}
 /* Bottom nav */
-nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:9;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+nav.tabs{position:fixed;left:0;right:0;bottom:calc(0px - var(--ios-gap,0px));z-index:9;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
 nav.tabs .in{display:grid;grid-template-columns:repeat(5,1fr);height:var(--nav);max-width:720px;margin:0 auto;padding-left:max(4px,env(safe-area-inset-left,0px));padding-right:max(4px,env(safe-area-inset-right,0px))}
 nav.tabs button{border:0;background:none;color:var(--muted);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font:600 11px var(--f-body);cursor:pointer;min-width:0}
 nav.tabs button svg{width:24px;height:24px}
@@ -268,57 +269,128 @@ details.method b{color:var(--ink);font-weight:600}
 const EX=[
  {id:"bench",n:"Barbell bench press",g:"chest",s:["triceps","shoulders"],eq:"barbell",c:1},
  {id:"incline_bb",n:"Incline barbell press",g:"chest",s:["shoulders","triceps"],eq:"barbell",c:1},
+ {id:"decline_bench",n:"Decline bench press",g:"chest",s:["triceps"],eq:"barbell",c:1},
+ {id:"smith_bench",n:"Smith machine bench press",g:"chest",s:["triceps","shoulders"],eq:"smith",c:1},
+ {id:"smith_incline",n:"Smith machine incline press",g:"chest",s:["shoulders","triceps"],eq:"smith",c:1},
  {id:"db_bench",n:"Dumbbell bench press",g:"chest",s:["triceps","shoulders"],eq:"dumbbell",c:1},
  {id:"incline_db",n:"Incline dumbbell press",g:"chest",s:["shoulders","triceps"],eq:"dumbbell",c:1},
- {id:"dip",n:"Weighted dip",g:"chest",s:["triceps","shoulders"],eq:"bodyweight",c:1,bw:1,f:0.95},
  {id:"machine_press",n:"Machine chest press",g:"chest",s:["triceps"],eq:"machine",c:1},
- {id:"cable_fly",n:"Cable fly",g:"chest",s:[],eq:"cable",c:0},
- {id:"pec_deck",n:"Pec deck",g:"chest",s:[],eq:"machine",c:0},
+ {id:"incline_machine",n:"Incline machine press",g:"chest",s:["shoulders","triceps"],eq:"machine",c:1},
+ {id:"dip",n:"Weighted dip",g:"chest",s:["triceps","shoulders"],eq:"bodyweight",c:1,bw:1,f:0.95},
  {id:"pushup",n:"Push-up",g:"chest",s:["triceps"],eq:"bodyweight",c:1,bw:1,f:0.65},
+ {id:"db_fly",n:"Dumbbell fly",g:"chest",s:[],eq:"dumbbell",c:0},
+ {id:"cable_fly",n:"Cable fly",g:"chest",s:[],eq:"cable",c:0},
+ {id:"low_cable_fly",n:"Low-to-high cable fly",g:"chest",s:["shoulders"],eq:"cable",c:0},
+ {id:"pec_deck",n:"Pec deck",g:"chest",s:[],eq:"machine",c:0},
  {id:"ohp",n:"Overhead press",g:"shoulders",s:["triceps"],eq:"barbell",c:1},
+ {id:"smith_ohp",n:"Smith machine shoulder press",g:"shoulders",s:["triceps"],eq:"smith",c:1},
  {id:"db_ohp",n:"Seated dumbbell press",g:"shoulders",s:["triceps"],eq:"dumbbell",c:1},
+ {id:"arnold",n:"Arnold press",g:"shoulders",s:["triceps"],eq:"dumbbell",c:1},
+ {id:"machine_ohp",n:"Machine shoulder press",g:"shoulders",s:["triceps"],eq:"machine",c:1},
+ {id:"landmine_press",n:"Landmine press",g:"shoulders",s:["chest","triceps"],eq:"barbell",c:1},
  {id:"lateral",n:"Dumbbell lateral raise",g:"shoulders",s:[],eq:"dumbbell",c:0},
  {id:"cable_lateral",n:"Cable lateral raise",g:"shoulders",s:[],eq:"cable",c:0},
+ {id:"machine_lateral",n:"Machine lateral raise",g:"shoulders",s:[],eq:"machine",c:0},
+ {id:"front_raise",n:"Front raise",g:"shoulders",s:[],eq:"dumbbell",c:0},
+ {id:"upright_row",n:"Cable upright row",g:"shoulders",s:["back"],eq:"cable",c:0},
  {id:"rear_fly",n:"Reverse pec deck",g:"shoulders",s:["back"],eq:"machine",c:0},
+ {id:"rear_db_fly",n:"Bent-over rear delt fly",g:"shoulders",s:["back"],eq:"dumbbell",c:0},
  {id:"face_pull",n:"Face pull",g:"shoulders",s:["back"],eq:"cable",c:0},
  {id:"cgbp",n:"Close-grip bench press",g:"triceps",s:["chest"],eq:"barbell",c:1},
+ {id:"smith_cgbp",n:"Smith machine close-grip press",g:"triceps",s:["chest"],eq:"smith",c:1},
+ {id:"jm_press",n:"JM press",g:"triceps",s:["chest"],eq:"barbell",c:1},
  {id:"pushdown",n:"Triceps pushdown",g:"triceps",s:[],eq:"cable",c:0},
+ {id:"rope_pushdown",n:"Rope pushdown",g:"triceps",s:[],eq:"cable",c:0},
  {id:"oh_ext",n:"Overhead cable extension",g:"triceps",s:[],eq:"cable",c:0},
+ {id:"db_oh_ext",n:"Dumbbell overhead extension",g:"triceps",s:[],eq:"dumbbell",c:0},
  {id:"skull",n:"EZ-bar skull crusher",g:"triceps",s:[],eq:"barbell",c:0},
+ {id:"kickback",n:"Cable kickback (triceps)",g:"triceps",s:[],eq:"cable",c:0},
+ {id:"dip_machine",n:"Machine dip",g:"triceps",s:["chest"],eq:"machine",c:1},
  {id:"pullup",n:"Pull-up",g:"back",s:["biceps"],eq:"bodyweight",c:1,bw:1,f:1},
  {id:"chinup",n:"Chin-up",g:"back",s:["biceps"],eq:"bodyweight",c:1,bw:1,f:1},
+ {id:"pulldown",n:"Lat pulldown",g:"back",s:["biceps"],eq:"cable",c:1},
+ {id:"ua_pulldown",n:"Single-arm lat pulldown",g:"back",s:["biceps"],eq:"cable",c:1},
  {id:"bb_row",n:"Barbell row",g:"back",s:["biceps"],eq:"barbell",c:1},
  {id:"pendlay",n:"Pendlay row",g:"back",s:["biceps"],eq:"barbell",c:1},
+ {id:"smith_row",n:"Smith machine row",g:"back",s:["biceps"],eq:"smith",c:1},
  {id:"cs_row",n:"Chest-supported T-bar row",g:"back",s:["biceps"],eq:"machine",c:1},
+ {id:"seal_row",n:"Seal row",g:"back",s:["biceps"],eq:"barbell",c:1},
+ {id:"meadows",n:"Meadows row",g:"back",s:["biceps"],eq:"barbell",c:1},
  {id:"db_row",n:"One-arm dumbbell row",g:"back",s:["biceps"],eq:"dumbbell",c:1},
  {id:"cable_row",n:"Seated cable row",g:"back",s:["biceps"],eq:"cable",c:1},
- {id:"pulldown",n:"Lat pulldown",g:"back",s:["biceps"],eq:"cable",c:1},
- {id:"pullover",n:"Cable pullover",g:"back",s:[],eq:"cable",c:0},
+ {id:"machine_row",n:"Machine row",g:"back",s:["biceps"],eq:"machine",c:1},
+ {id:"inverted_row",n:"Inverted row",g:"back",s:["biceps"],eq:"bodyweight",c:1,bw:1,f:0.6},
+ {id:"pullover",n:"Straight-arm cable pulldown",g:"back",s:[],eq:"cable",c:0},
+ {id:"rack_pull",n:"Rack pull",g:"back",s:["hamstrings","glutes"],eq:"barbell",c:1,m:9},
  {id:"shrug",n:"Dumbbell shrug",g:"back",s:[],eq:"dumbbell",c:0},
- {id:"bb_curl",n:"Barbell curl",g:"biceps",s:[],eq:"barbell",c:0},
+ {id:"smith_shrug",n:"Smith machine shrug",g:"back",s:[],eq:"smith",c:0},
+ {id:"back_ext",n:"Back extension",g:"back",s:["glutes","hamstrings"],eq:"bodyweight",c:0,bw:1,f:0.5},
+ {id:"bb_curl",n:"Barbell curl",g:"biceps",s:["forearms"],eq:"barbell",c:0},
+ {id:"ez_curl",n:"EZ-bar curl",g:"biceps",s:["forearms"],eq:"barbell",c:0},
  {id:"db_curl",n:"Incline dumbbell curl",g:"biceps",s:[],eq:"dumbbell",c:0},
- {id:"hammer",n:"Hammer curl",g:"biceps",s:[],eq:"dumbbell",c:0},
+ {id:"alt_db_curl",n:"Alternating dumbbell curl",g:"biceps",s:["forearms"],eq:"dumbbell",c:0},
+ {id:"hammer",n:"Hammer curl",g:"biceps",s:["forearms"],eq:"dumbbell",c:0},
  {id:"preacher",n:"Preacher curl",g:"biceps",s:[],eq:"machine",c:0},
+ {id:"spider_curl",n:"Spider curl",g:"biceps",s:[],eq:"dumbbell",c:0},
  {id:"cable_curl",n:"Cable curl",g:"biceps",s:[],eq:"cable",c:0},
- {id:"squat",n:"Back squat",g:"legs",s:["core"],eq:"barbell",c:1,m:9},
- {id:"front_squat",n:"Front squat",g:"legs",s:["core"],eq:"barbell",c:1,m:9},
- {id:"deadlift",n:"Deadlift",g:"legs",s:["back"],eq:"barbell",c:1,m:9},
- {id:"rdl",n:"Romanian deadlift",g:"legs",s:["back"],eq:"barbell",c:1},
- {id:"leg_press",n:"Leg press",g:"legs",s:[],eq:"machine",c:1},
- {id:"split_squat",n:"Bulgarian split squat",g:"legs",s:[],eq:"dumbbell",c:1},
- {id:"lunge",n:"Walking lunge",g:"legs",s:[],eq:"dumbbell",c:1},
- {id:"leg_ext",n:"Leg extension",g:"legs",s:[],eq:"machine",c:0},
- {id:"leg_curl",n:"Leg curl",g:"legs",s:[],eq:"machine",c:0},
- {id:"hip_thrust",n:"Hip thrust",g:"legs",s:[],eq:"barbell",c:1},
- {id:"calf",n:"Standing calf raise",g:"legs",s:[],eq:"machine",c:0},
+ {id:"bayesian",n:"Bayesian cable curl",g:"biceps",s:[],eq:"cable",c:0},
+ {id:"concentration",n:"Concentration curl",g:"biceps",s:[],eq:"dumbbell",c:0},
+ {id:"reverse_curl",n:"Reverse curl",g:"forearms",s:["biceps"],eq:"barbell",c:0},
+ {id:"wrist_curl",n:"Wrist curl",g:"forearms",s:[],eq:"dumbbell",c:0},
+ {id:"rev_wrist_curl",n:"Reverse wrist curl",g:"forearms",s:[],eq:"dumbbell",c:0},
+ {id:"farmer",n:"Farmer carry (steps)",g:"forearms",s:["back","core"],eq:"dumbbell",c:1},
+ {id:"squat",n:"Back squat",g:"quads",s:["glutes","core"],eq:"barbell",c:1,m:9},
+ {id:"front_squat",n:"Front squat",g:"quads",s:["glutes","core"],eq:"barbell",c:1,m:9},
+ {id:"smith_squat",n:"Smith machine squat",g:"quads",s:["glutes"],eq:"smith",c:1,m:9},
+ {id:"hack_squat",n:"Hack squat",g:"quads",s:["glutes"],eq:"machine",c:1},
+ {id:"pendulum",n:"Pendulum squat",g:"quads",s:["glutes"],eq:"machine",c:1},
+ {id:"goblet",n:"Goblet squat",g:"quads",s:["glutes"],eq:"dumbbell",c:1},
+ {id:"leg_press",n:"Leg press",g:"quads",s:["glutes"],eq:"machine",c:1},
+ {id:"split_squat",n:"Bulgarian split squat",g:"quads",s:["glutes"],eq:"dumbbell",c:1},
+ {id:"smith_split",n:"Smith machine split squat",g:"quads",s:["glutes"],eq:"smith",c:1},
+ {id:"lunge",n:"Walking lunge",g:"quads",s:["glutes"],eq:"dumbbell",c:1},
+ {id:"step_up",n:"Step-up",g:"quads",s:["glutes"],eq:"dumbbell",c:1},
+ {id:"leg_ext",n:"Leg extension",g:"quads",s:[],eq:"machine",c:0},
+ {id:"deadlift",n:"Deadlift",g:"hamstrings",s:["glutes","back"],eq:"barbell",c:1,m:9},
+ {id:"rdl",n:"Romanian deadlift",g:"hamstrings",s:["glutes","back"],eq:"barbell",c:1},
+ {id:"db_rdl",n:"Dumbbell Romanian deadlift",g:"hamstrings",s:["glutes"],eq:"dumbbell",c:1},
+ {id:"smith_rdl",n:"Smith machine Romanian deadlift",g:"hamstrings",s:["glutes"],eq:"smith",c:1},
+ {id:"good_morning",n:"Good morning",g:"hamstrings",s:["back","glutes"],eq:"barbell",c:1},
+ {id:"leg_curl",n:"Lying leg curl",g:"hamstrings",s:[],eq:"machine",c:0},
+ {id:"seated_curl",n:"Seated leg curl",g:"hamstrings",s:[],eq:"machine",c:0},
+ {id:"nordic",n:"Nordic curl",g:"hamstrings",s:[],eq:"bodyweight",c:0,bw:1,f:0.6},
+ {id:"ghr",n:"Glute-ham raise",g:"hamstrings",s:["glutes"],eq:"bodyweight",c:0,bw:1,f:0.6},
+ {id:"hip_thrust",n:"Hip thrust",g:"glutes",s:["hamstrings"],eq:"barbell",c:1},
+ {id:"smith_thrust",n:"Smith machine hip thrust",g:"glutes",s:["hamstrings"],eq:"smith",c:1},
+ {id:"glute_bridge",n:"Glute bridge",g:"glutes",s:["hamstrings"],eq:"barbell",c:1},
+ {id:"cable_kick",n:"Cable glute kickback",g:"glutes",s:[],eq:"cable",c:0},
+ {id:"abduction",n:"Hip abduction machine",g:"glutes",s:[],eq:"machine",c:0},
+ {id:"sumo_dl",n:"Sumo deadlift",g:"glutes",s:["quads","hamstrings","back"],eq:"barbell",c:1,m:9},
+ {id:"calf",n:"Standing calf raise",g:"calves",s:[],eq:"machine",c:0},
+ {id:"seated_calf",n:"Seated calf raise",g:"calves",s:[],eq:"machine",c:0},
+ {id:"smith_calf",n:"Smith machine calf raise",g:"calves",s:[],eq:"smith",c:0},
+ {id:"lp_calf",n:"Leg press calf raise",g:"calves",s:[],eq:"machine",c:0},
  {id:"cable_crunch",n:"Cable crunch",g:"core",s:[],eq:"cable",c:0},
  {id:"hlr",n:"Hanging leg raise",g:"core",s:[],eq:"bodyweight",c:0,bw:1,f:0.3},
- {id:"ab_wheel",n:"Ab wheel rollout",g:"core",s:[],eq:"bodyweight",c:0,bw:1,f:0.5}
+ {id:"knee_raise",n:"Captain's chair knee raise",g:"core",s:[],eq:"bodyweight",c:0,bw:1,f:0.25},
+ {id:"ab_wheel",n:"Ab wheel rollout",g:"core",s:[],eq:"bodyweight",c:0,bw:1,f:0.5},
+ {id:"decline_situp",n:"Decline sit-up",g:"core",s:[],eq:"bodyweight",c:0,bw:1,f:0.3},
+ {id:"machine_crunch",n:"Machine crunch",g:"core",s:[],eq:"machine",c:0},
+ {id:"woodchop",n:"Cable woodchop",g:"obliques",s:["core"],eq:"cable",c:0},
+ {id:"rev_woodchop",n:"Low-to-high cable woodchop",g:"obliques",s:["core"],eq:"cable",c:0},
+ {id:"pallof",n:"Pallof press",g:"obliques",s:["core"],eq:"cable",c:0},
+ {id:"side_bend",n:"Dumbbell side bend",g:"obliques",s:[],eq:"dumbbell",c:0},
+ {id:"russian_twist",n:"Russian twist",g:"obliques",s:["core"],eq:"bodyweight",c:0,bw:1,f:0.2},
+ {id:"oblique_crunch",n:"Cable oblique crunch",g:"obliques",s:["core"],eq:"cable",c:0},
+ {id:"hanging_oblique",n:"Hanging oblique knee raise",g:"obliques",s:["core"],eq:"bodyweight",c:0,bw:1,f:0.25},
+ {id:"landmine_rot",n:"Landmine rotation",g:"obliques",s:["core","shoulders"],eq:"barbell",c:0},
+ {id:"side_plank_dip",n:"Side plank hip dip",g:"obliques",s:["core"],eq:"bodyweight",c:0,bw:1,f:0.15}
 ];
-const GROUPS=["chest","back","shoulders","triceps","biceps","legs","core"];
+const GROUPS=["chest","back","shoulders","triceps","biceps","forearms","quads","hamstrings","glutes","calves","core","obliques"];
 const KG=0.45359237, MET_REST=1.8, DAY=864e5, FALLBACK_KG=80;
 const IC={
  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+ copy:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8.5" y="8.5" width="11" height="11" rx="2.5"/><path d="M15.5 8.5V6.5a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2"/></svg>',
  trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9.5 7V4.5h5V7M6.5 7l1 12.5h9l1-12.5M10 11v5M14 11v5"/></svg>',
  back:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5L8 12l6.5 6.5"/></svg>',
  plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
@@ -453,7 +525,7 @@ function renderHome(){const v=document.getElementById("v-log");
     <div class="exlist">${esc(names)||"No exercises"}</div></button>
    ${confirming?`<div class="confirm"><span>Delete "${esc(t.name)}"? Past workouts stay.</span><span class="row"><button class="btn sm danger" data-act="tpl-del-yes" data-id="${esc(t.id)}">Delete</button><button class="btn sm" data-act="confirm-no">Cancel</button></span></div>`:
    `<div class="foot"><span class="meta">${(t.items||[]).length} exercises · ~${Math.round(est.sec/60)} min · ${fmt(est.net)} kcal</span>
-    <span class="row" style="gap:4px"><button class="icon-btn danger" data-act="tpl-del" data-id="${esc(t.id)}" aria-label="Delete ${esc(t.name)}">${IC.trash}</button><button class="btn sm pri" data-act="tpl-start" data-id="${esc(t.id)}">Start</button></span></div>`}
+    <span class="row" style="gap:4px"><button class="icon-btn" data-act="tpl-dup" data-id="${esc(t.id)}" aria-label="Duplicate ${esc(t.name)}">${IC.copy}</button><button class="icon-btn danger" data-act="tpl-del" data-id="${esc(t.id)}" aria-label="Delete ${esc(t.name)}">${IC.trash}</button><button class="btn sm pri" data-act="tpl-start" data-id="${esc(t.id)}">Start</button></span></div>`}
   </div>`}).join("");
  v.innerHTML=`${vhead("Workout")}${profileNudge()}
   <button class="btn pri lg block" data-act="empty-start">${IC.plus} Start empty workout</button>
@@ -484,7 +556,7 @@ function renderEditor(){const v=document.getElementById("v-log"),est=planEstimat
   <div class="card" id="planTotals">${planStats(est.T)}</div>
   <button class="btn pri lg block" data-act="start" ${S.plan.length||S.planType==="Cardio"?"":"disabled"}>Start workout</button>
   <div class="row"><button class="btn" data-act="tpl-save" style="flex:1" ${S.plan.length?"":"disabled"}>${existing&&!existing.example?"Save changes":"Save as template"}</button>
-   ${existing?`<button class="btn danger" data-act="tpl-del" data-id="${esc(existing.id)}">${IC.trash} Delete</button>`:""}</div>
+   ${existing?`<button class="btn" data-act="tpl-dup" data-id="${esc(existing.id)}" data-open="1" aria-label="Duplicate template">${IC.copy}</button><button class="btn danger" data-act="tpl-del" data-id="${esc(existing.id)}" aria-label="Delete template">${IC.trash}</button>`:""}</div>
   ${existing&&S.confirm==="tpl:"+existing.id?`<div class="confirm"><span>Delete "${esc(existing.name)}"? Past workouts stay.</span><span class="row"><button class="btn sm danger" data-act="tpl-del-yes" data-id="${esc(existing.id)}">Delete</button><button class="btn sm" data-act="confirm-no">Cancel</button></span></div>`:""}`}
 const planStats=T=>statGrid([["est. time",Math.round(T.sec/60)+"m"],["sets",T.sets],["volume "+U(),tick(toD(T.vol))],["net kcal",fmt(T.net)]]);
 function estLine(r,e){return`${Math.round(r.sec/60)} min · ${fmt(r.net)} kcal · ${tick(toD(r.vol))} ${U()}`}
@@ -775,6 +847,13 @@ const ACT={
  "tpl-start":b=>{const t=S.templates.find(x=>x.id===b.dataset.id);if(t)startWorkout(t.items||[],t.name,t.type||"Other")},
  "tpl-edit":b=>{const t=S.templates.find(x=>x.id===b.dataset.id);if(!t)return;S.plan=JSON.parse(JSON.stringify(t.items||[])).map(normItem);S.planName=t.name;S.menu=null;S.planType=t.type||"Other";S.editId=t.id;S.logView="edit";S.confirm=null;renderLog();window.scrollTo(0,0)},
  "tpl-new":()=>{S.menu=null;S.plan=[];S.planName="";S.planType="Push";S.editId=null;S.logView="edit";S.confirm=null;renderLog();window.scrollTo(0,0)},
+ "tpl-dup":b=>{const t=S.templates.find(x=>x.id===b.dataset.id);if(!t)return;
+  const src=b.dataset.open&&S.editId===t.id?{name:(S.planName||t.name).trim(),type:S.planType,items:S.plan}:t;
+  let name=src.name+" copy",k=2;while(S.templates.some(x=>x.name===name))name=src.name+" copy "+k++;
+  const id=tplId(name),doc={name,type:src.type||"Other",items:JSON.parse(JSON.stringify(src.items||[])).map(normItem),updatedAt:new Date().toISOString()};
+  writeDoc("templates/"+id,doc);S.templates.push({id,...doc});S.templates.sort((a,b)=>String(a.name).localeCompare(String(b.name)));S.confirm=null;S.menu=null;
+  if(b.dataset.open){S.plan=JSON.parse(JSON.stringify(doc.items));S.planName=name;S.planType=doc.type;S.editId=id;window.scrollTo(0,0)}
+  setSync("Duplicated","ok");renderLog()},
  "tpl-del":b=>{S.confirm="tpl:"+b.dataset.id;renderLog()},
  "tpl-del-yes":b=>{const id=b.dataset.id;S.templates=S.templates.filter(t=>t.id!==id);delDoc("templates/"+id);S.confirm=null;if(S.editId===id){S.editId=null;S.logView="home"}renderLog()},
  "tpl-save":()=>{if(!S.plan.length)return;saveTemplate();S.logView="home";renderLog();window.scrollTo(0,0)},
@@ -867,6 +946,15 @@ document.addEventListener("change",e=>{if(e.target.id!=="importFile")return;cons
  rd.onload=()=>{const msg=document.getElementById("importMsg");try{const o=JSON.parse(rd.result);if(o.app!=="lift-ledger"||!o.data||typeof o.data!=="object")throw 0;
   S.pendingImport={data:o.data,exportedAt:o.exportedAt,n:Object.keys(o.data).filter(k=>k.startsWith("sessions/")).length};renderProfile()}catch(err){if(msg)msg.textContent="That file isn't a Lift Ledger backup."}};rd.readAsText(f);e.target.value=""});
 document.addEventListener("keydown",e=>{if(e.key==="Escape")document.getElementById("picker").hidden=true});
+
+/* ---------- iOS home-screen layout fix ----------
+ WebKit bug 236445: with viewport-fit=cover + black-translucent, fixed bottom:0 elements sit above the screen edge
+ by about the top safe-area inset. Measure the real gap and pull the tab bar down by it. */
+(()=>{const st=window.navigator.standalone===true||window.matchMedia("(display-mode: standalone)").matches;if(!st)return;
+ document.documentElement.setAttribute("data-standalone","");
+ const fix=()=>{const portrait=window.innerHeight>=window.innerWidth,full=portrait?Math.max(screen.width,screen.height):Math.min(screen.width,screen.height);
+  const gap=full-window.innerHeight;document.documentElement.style.setProperty("--ios-gap",(gap>0&&gap<90?gap:0)+"px")};
+ fix();["resize","orientationchange","pageshow"].forEach(ev=>window.addEventListener(ev,()=>setTimeout(fix,60)));document.addEventListener("visibilitychange",()=>setTimeout(fix,60))})();
 
 /* ---------- Install hint + offline ---------- */
 (()=>{const ios=/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
